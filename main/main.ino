@@ -11,6 +11,9 @@
 unsigned long timer1 = 1000 * 60;
 LinkedList<int> low_pins = LinkedList<int>();
 int pinn = FIRST_LED_PIN;
+bool stop_flag = 0;
+bool button_was_up = 1;
+
 void setup() {
   Serial.begin(9600);
 
@@ -26,6 +29,10 @@ void setup() {
   delay(1024); // Чтобы в 0 момент горел первый диод
 }
 
+
+
+
+
 int findElement(LinkedList<int> &list, int value) {
   for (int i = 0; i < list.size(); i++) {
     if (list.get(i) == value) {
@@ -35,15 +42,30 @@ int findElement(LinkedList<int> &list, int value) {
   return 0; // Не нашли
 }
 
-void ButtonsLogic() {
-  for (int i = 0; i < KEY_COUNT; ++i) {
-    int key_pin = FIRST_KEY_PIN + i * 2;
-    bool key_up = digitalRead(key_pin);
+
+
+
+
+void StopButtonLogic() {
+  bool key_up = digitalRead(12);
+  if ((!key_up) && button_was_up) {
+    key_up = digitalRead(12);
     if (!key_up) {
+      if (stop_flag) {
+        stop_flag = 0;
+      } else {
+        stop_flag = 1;
+      }
       Serial.println("button pressed");
+      Serial.println(stop_flag);
     }
   }
+  button_was_up = key_up;
 }
+
+
+
+
 
 void UpdateLight() {
   for (int pin = 0; pin < 10; ++pin) {
@@ -52,6 +74,10 @@ void UpdateLight() {
     low_pins.clear();
     pinn = FIRST_LED_PIN;
 }
+
+
+
+
 
 void LedLogic() {
   low_pins.add(pinn);
@@ -64,6 +90,13 @@ void LedLogic() {
   delay(1024); // нужен чтобы первый загорелся
 }
 
+
+
+
+
 void loop() { 
-  LedLogic();
+  if (!stop_flag) {
+    LedLogic();
+  }
+  StopButtonLogic();
   }
