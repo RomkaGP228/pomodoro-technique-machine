@@ -17,15 +17,15 @@ LinkedList<int> low_pins = LinkedList<int>();
 int pinn = FIRST_LED_PIN;
 bool stop_flag = 1;
 
-unsigned long time_delay = 1024;
+unsigned long time_delay = 1024 * 6;
 
 bool stop_button_was_up = 1;
 bool reset_button_was_up = 1;
 
 unsigned long last_led_update_time = 0;
-bool is_waiting_reset = false; 
+bool is_waiting_reset = false;
 
-
+bool chill_flag = 1;
 
 void setup() {
   Serial.begin(9600);
@@ -41,28 +41,20 @@ void setup() {
   for (int pin = FIRST_LED_PIN; pin <= LAST_LED_PIN; pin += 2) {
     digitalWrite(pin, HIGH);
   }
-  delay(time_delay); // Чтобы в 0 момент горел первый диод
 }
 
-
-
-
-void loop() { 
+void loop() {
   if (!stop_flag) {
     LedLogic();
     digitalWrite(6, HIGH);
     digitalWrite(5, LOW);
   } else {
-    last_led_update_time = millis();
     digitalWrite(6, LOW);
     digitalWrite(5, HIGH);
   }
   StopButtonLogic();
   ResetButtonLogic();
 }
-
-
-
 
 int findElement(LinkedList<int> &list, int value) {
   for (int i = 0; i < list.size(); i++) {
@@ -72,10 +64,6 @@ int findElement(LinkedList<int> &list, int value) {
   }
   return 0; // Не нашли
 }
-
-
-
-
 
 void StopButtonLogic() {
   bool stop_button_is_up = digitalRead(12);
@@ -94,8 +82,14 @@ void StopButtonLogic() {
   stop_button_was_up = stop_button_is_up;
 }
 
-
-
+void BuzzerLogic() {
+  tone(BUZZER, 4000, 100);
+  delay(1000);
+  tone(BUZZER, 4000, 100);
+  delay(1000);
+  tone(BUZZER, 4000, 100);
+  delay(1000);
+}
 
 void ResetButtonLogic() {
   bool reset_button_is_up = digitalRead(13);
@@ -113,34 +107,54 @@ void ResetButtonLogic() {
   reset_button_was_up = reset_button_is_up;
 }
 
-
-
-
 void UpdateLight() {
   for (int pin = 0; pin < 10; ++pin) {
-      digitalWrite(FIRST_LED_PIN + 2 * pin, HIGH);
-    }
-    low_pins.clear();
-    pinn = FIRST_LED_PIN;
+    digitalWrite(FIRST_LED_PIN + 2 * pin, HIGH);
+  }
+  low_pins.clear();
+  pinn = FIRST_LED_PIN;
+  if (chill_flag) {
+    time_delay /= 2;
+    chill_flag = 0;
+  } else {
+    time_delay = 1024 * 6;
+    chill_flag = 1;
+  }
 }
-
-
-
-
 
 void LedLogic() {
   if (millis() - last_led_update_time >= time_delay) {
     last_led_update_time = millis();
+
     if (is_waiting_reset) {
-      UpdateLight();
+      // После буззера зажигаем все
+      for (int pin = FIRST_LED_PIN; pin <= LAST_LED_PIN; pin += 2) {
+        digitalWrite(pin, HIGH);
+      }
+      low_pins.clear();
+      pinn = FIRST_LED_PIN;
+      if (chill_flag) {
+        time_delay /= 2;
+        chill_flag = 0;
+      } else {
+        time_delay = 1024 * 6;
+        chill_flag = 1;
+      }
       is_waiting_reset = false;
       return;
     }
+
     low_pins.add(pinn);
     digitalWrite(pinn, LOW);
     pinn += 2;
+
     if (low_pins.size() == 10) {
+      for (int pin = FIRST_LED_PIN; pin <= LAST_LED_PIN; pin += 2) {
+        digitalWrite(pin, LOW);
+      }
       is_waiting_reset = true;
+      BuzzerLogic();
+      return;
     }
   }
 }
